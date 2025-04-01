@@ -7,7 +7,8 @@ class DocumentGenerator
 {
     private const TEMPLATES = [
         'salary_certificate' => 'Salary.docx',
-        'noc' => 'NOC.docx'
+        'noc' => 'NOC.docx',
+        'offer_letter' => 'Offer_Letter.docx'
     ];
 
     private $templateDir;
@@ -84,18 +85,45 @@ class DocumentGenerator
         $fullName = $this->formatFullName();
         $sanitizedFileName = preg_replace('/[^A-Za-z0-9_\-]/', '_', $fullName);
 
-        $wordFile = generateWordDocument(
-            $templatePath,
-            $this->user,
-            $_POST['startDate'] ?? null,
-            $_POST['endDate'] ?? null,
-            $_POST['currentSalaryNoc'] ?? null,
-            $_POST['currentSalary'] ?? null,
-            $_POST['addressTo'] ?? null,
-            $_POST['addressToNoc'] ?? null,
-            $_POST['nocReason'] ?? null,
-            $_POST['country'] ?? 'UAE'
-        );
+        if ($_POST['documentType'] === 'offer_letter') {
+            $dynamicValues = [
+                'FULL_NAME' => $_POST['fullName'] ?? '',
+                'OFFER_VALIDITY_DATE' => $_POST['offerValidityDate'] ?? '',
+                'EXPECTED_JOINING_DATE' => $_POST['expectedJoiningDate'] ?? '',
+                'SIGNATURE_LOCATION' => $_POST['signatureLocation'] ?? '',
+                'SIGNATURE_DATE' => $_POST['signatureDate'] ?? '',
+            ];
+            $wordFile = generateWordDocument($templatePath, $this->user, $dynamicValues);
+        } elseif ($_POST['documentType'] === 'salary_certificate') {
+            // Build dynamic values for the new salary certificate template
+            $dynamicValues = [
+                'CURRENT_DATE'       => date('Y-m-d'),
+                'FULL_NAME'          => $_POST['fullName'] ?? '',
+                'DESIGNATION'        => $_POST['designation'] ?? '',
+                'EMIRATES_ID'        => $_POST['emiratesId'] ?? '',
+                'DATE_OF_JOINING'    => $_POST['dateOfJoining'] ?? '',
+                'EMPLOYMENT_TYPE'    => $_POST['employmentType'] ?? '',
+                'COMPANY_NAME'       => $_POST['companyName'] ?? '',
+                'COMPANY_ADDRESS'    => $_POST['companyAddress'] ?? '',
+                'CONTACT_INFORMATION' => $_POST['contactInformation'] ?? '',
+                'SALARY'             => $_POST['salary'] ?? '',
+            ];
+            $wordFile = generateWordDocument($templatePath, $this->user, $dynamicValues);
+        } else {
+            // Existing processing for NOC, etc.
+            $wordFile = generateWordDocument(
+                $templatePath,
+                $this->user,
+                $_POST['startDate'] ?? null,
+                $_POST['endDate'] ?? null,
+                $_POST['currentSalaryNoc'] ?? null,
+                $_POST['currentSalary'] ?? null,
+                $_POST['addressTo'] ?? null,
+                $_POST['addressToNoc'] ?? null,
+                $_POST['nocReason'] ?? null,
+                $_POST['country'] ?? 'UAE'
+            );
+        }
 
         if (!$wordFile) {
             throw new Exception("Failed to generate the document.");
@@ -103,6 +131,7 @@ class DocumentGenerator
 
         $this->sendFile($wordFile, $sanitizedFileName);
     }
+
 
     private function sendFile(string $wordFile, string $sanitizedFileName): void
     {

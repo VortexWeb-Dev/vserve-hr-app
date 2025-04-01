@@ -2,7 +2,7 @@
 
 require 'vendor/autoload.php';
 require_once 'crest/crest.php';
-require_once 'utils.php';
+// Removed the recursive require_once 'utils.php'
 
 use PhpOffice\PhpWord\TemplateProcessor;
 
@@ -20,7 +20,11 @@ function formatDateRange($startDate, $endDate)
     );
 }
 
-function generateWordDocument($templatePath, $user, $startDate, $endDate, $salaryNoc, $salary, $address_to, $address_to_noc, $noc_reason, $country)
+/**
+ * Modified generateWordDocument function that supports both dynamic values arrays
+ * (for salary_certificate and similar) and the older fixed parameter signature.
+ */
+function generateWordDocument($templatePath, $user, ...$args)
 {
     if (!file_exists($templatePath)) {
         error_log("Template file does not exist: $templatePath");
@@ -29,24 +33,39 @@ function generateWordDocument($templatePath, $user, $startDate, $endDate, $salar
 
     $templateProcessor = new TemplateProcessor($templatePath);
 
-    // Prepare data for the template
-    $templateData = [
-        'FULL_NAME' => trim($user['NAME'] . ' ' . $user['LAST_NAME']),
-        'NATIONALITY' => $user['PERSONAL_COUNTRY'],
-        'PASSPORT_NUMBER' => $user['UF_USR_1737788340786'],
-        'DATE_OF_JOINING' => (new DateTime($user['UF_EMPLOYMENT_DATE']))->format('F Y'),
-        'POSITION' => $user['WORK_POSITION'],
-        'SALARY' => $salary,
-        'SALARY_NOC' => $salaryNoc,
-        'ADDRESS_TO' => $address_to,
-        'ADDRESS_TO_NOC' => $address_to_noc,
-        'CURRENT_DATE' => getTodayDateFormatted(),
-        'NOC_SENTENCE' => generateNocSentence($noc_reason, $country, formatDateRange($startDate, $endDate)),
-        'NOC_REASON' => generateNocReasonText($noc_reason, $country),
-    ];
+    // If the third parameter is an array, use it as the dynamic values
+    if (isset($args[0]) && is_array($args[0])) {
+        $dynamicValues = $args[0];
 
-    foreach ($templateData as $placeholder => $value) {
-        $templateProcessor->setValue($placeholder, $value);
+        // Loop through the dynamic values and set them in the template
+        foreach ($dynamicValues as $placeholder => $value) {
+            // TemplateProcessor placeholders in your DOCX are defined like ${PLACEHOLDER}
+            $templateProcessor->setValue($placeholder, $value);
+        }
+    } else {
+        // Original behavior for NOC and other document types
+        // Expected parameters:
+        // $startDate, $endDate, $salaryNoc, $salary, $address_to, $address_to_noc, $noc_reason, $country
+        list($startDate, $endDate, $salaryNoc, $salary, $address_to, $address_to_noc, $noc_reason, $country) = $args;
+
+        $templateData = [
+            'FULL_NAME'       => trim($user['NAME'] . ' ' . $user['LAST_NAME']),
+            'NATIONALITY'     => $user['PERSONAL_COUNTRY'],
+            'PASSPORT_NUMBER' => $user['UF_USR_1737788340786'],
+            'DATE_OF_JOINING' => (new DateTime($user['UF_EMPLOYMENT_DATE']))->format('F Y'),
+            'POSITION'        => $user['WORK_POSITION'],
+            'SALARY'          => $salary,
+            'SALARY_NOC'      => $salaryNoc,
+            'ADDRESS_TO'      => $address_to,
+            'ADDRESS_TO_NOC'  => $address_to_noc,
+            'CURRENT_DATE'    => getTodayDateFormatted(),
+            'NOC_SENTENCE'    => generateNocSentence($noc_reason, $country, formatDateRange($startDate, $endDate)),
+            'NOC_REASON'      => generateNocReasonText($noc_reason, $country),
+        ];
+
+        foreach ($templateData as $placeholder => $value) {
+            $templateProcessor->setValue($placeholder, $value);
+        }
     }
 
     // Save the document to a temporary file

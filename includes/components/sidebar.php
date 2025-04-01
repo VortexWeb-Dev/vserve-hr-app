@@ -3,6 +3,7 @@
 $navLinks = [
     'salary_cert.php' => ['Salary Certificate', 'fas fa-money-check-alt'],
     'noc_cert.php' => ['NOC Certificate', 'fas fa-file-alt'],
+    'offer_letter.php' => ['Offer Letter', 'fas fa-file-signature'],
     'https://vserve.bitrix24.in/bizproc/processes/20/view/0/' => ['Leave Application', 'fas fa-calendar-check', '_blank']
 ];
 
